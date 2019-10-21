@@ -4,10 +4,11 @@ const bodyParser = require('body-parser')
 const morgan = require('morgan')
 const cors = require('cors')
 
-// Tämä on oikea viimeisin projekti 
+// Tämä on oikea viimeisin projekti joka myös meni herokuun
 
 app.use(cors())
 app.use(bodyParser.json())
+app.use(express.static('build'))
 // app.use(morgan('tiny'))
 
 morgan.token('data', function (req, res) { 
