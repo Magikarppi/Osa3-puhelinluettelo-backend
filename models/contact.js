@@ -6,7 +6,7 @@ mongoose.set("useCreateIndex", true);
 //console.log("connecting to:", process.env.MONGODB_URI);
 
 mongoose
-  .connect('mongodb+srv://fullstack-puhelinluettelo:xDPc8qVSuh9gblgJ@cluster0-7rimt.mongodb.net/test?retryWrites=true&w=majority', {
+  .connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true
   })
