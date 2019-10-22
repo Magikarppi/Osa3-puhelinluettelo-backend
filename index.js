@@ -1,108 +1,129 @@
-const express = require('express')
-const app = express()
-const bodyParser = require('body-parser')
-const morgan = require('morgan')
-const cors = require('cors')
+require("dotenv").config();
+const express = require("express");
+const app = express();
+const bodyParser = require("body-parser");
+const morgan = require("morgan");
+const cors = require("cors");
 
-// Tämä on oikea viimeisin projekti joka myös meni herokuun
+const Contact = require("./models/contact");
 
-app.use(cors())
-app.use(bodyParser.json())
-app.use(express.static('build'))
+app.use(cors());
+app.use(bodyParser.json());
+app.use(express.static("build"));
 // app.use(morgan('tiny'))
 
-morgan.token('data', function (req, res) { 
-    return JSON.stringify(req.body)
-})
+morgan.token("data", function(req, res) {
+  return JSON.stringify(req.body);
+});
 
 const loggerFormat = ':data ":method :url" :status :response-time';
 
-app.use(morgan(loggerFormat))
+app.use(morgan(loggerFormat));
 
-let persons = [
-    {
-      id: 1,
-      name: "Bruce Dickinson",
-      number: "030-93385813"
-    },
-    {
-      id: 2,
-      name: "Eckhart Tolle",
-      number: "0700-696968"
-    },
-    {
-      id: 3,
-      name: "Ronnie James Dio",
-      number: "666-666-666"
-    }
-]
+app.get("/api/persons", (request, response, next) => {
+  Contact.find({}).then(persons => {
+    response.json(persons.map(person => person.toJSON()));
+  });
+});
 
-app.get('/api/persons', (request, response) => {
-    response.json(persons)
-})
+app.get("/api/persons/:id", (request, response, next) => {
+  Contact.findById(request.params.id)
+    .then(contact => {
+      if (contact) {
+        response.json(contact.toJSON());
+      } else {
+        response.status(404).end();
+      }
+    })
+    .catch(error => next(error));
+});
 
-app.get('/api/persons/:id', (request, response) => {
-    const id = Number(request.params.id)
-    const person = persons.find(person => person.id === id)
+app.get("/api/info", (request, response, next) => {
+  const date = new Date();
+  Contact.find({}).then(persons => {
+    response.json(`Phonebook has info for ${persons.length} people. ${date} `);
+  });
+});
 
-    person 
-        ? response.json(person)
-        : response.status(404).end()
-})
+app.delete("/api/persons/:id", (request, response, next) => {
+  Contact.findByIdAndRemove(request.params.id)
+    .then(result => {
+      response.status(204).end();
+    })
+    .catch(error => next(error));
+});
 
-app.get('/api/info', (request, response) => {
-    const date = new Date()
-    const info = `Phonebook has info for ${persons.length} people. ${date} `
+// const generateId = () => {
+//     const id = Math.floor(Math.random() * 1000)
+//     return id
+// }
 
-    response.json(info)
-})
+app.post("/api/persons", (request, response, next) => {
+  const body = request.body;
 
-app.delete('/api/persons/:id', (request, response) => {
-    const id = Number(request.params.id)
-    persons = persons.filter(person => person.id !== id)
+  if (!body) {
+    return response.status(400).json({
+      error: "content missing"
+    });
+  }
 
-    response.status(204).end()
-})
+  if (!body.name || !body.number) {
+    return response.status(400).json({
+      error: "Both name and number must be provided"
+    });
+  }
 
-const generateId = () => {
-    const id = Math.floor(Math.random() * 1000)
-    return id
-}
+  const contact = new Contact({
+    name: body.name,
+    number: body.number
+  });
 
-app.post('/api/persons', (request, response) => {
-    const body = request.body
+  contact
+    .save()
+    .then(savedContact => {
+      response.json(savedContact.toJSON());
+    })
+    .catch(error => next(error));
+});
 
-    if (!body) {
-        return response.status(400).json({
-            error: "content missing"
-        })
-    }
+app.put("/api/persons/:id", (request, response, next) => {
+  const contact = {
+    name: request.body.name,
+    number: request.body.number
+  };
 
-    if (!body.name || !body.number) {
-        return response.status(400).json({
-            error: "Both name and number must be provided"
-        })
-    }
+  Contact.findByIdAndUpdate(request.params.id, contact, {
+    new: true,
+    omitUndefined: true
+  })
+    .then(updatedContact => {
+      console.log("updatedContact:", updatedContact);
+      response.json(updatedContact.toJSON());
+    })
+    .catch(error => next(error));
+});
 
-    if (persons.find(person => person.name.toUpperCase() === body.name.toUpperCase())) {
-        return response.status(400).json({
-            error: `There is already a person with the name of ${body.name} in the Phonebook`
-        })
-    }
+const unknownEndpoint = (request, response) => {
+  response.status(404).send({ error: "unknown endpoint" });
+};
 
-    const person = {
-        name: body.name,
-        number: body.number,
-        id: generateId()
-    }
+app.use(unknownEndpoint);
 
-    persons = persons.concat(person)
+const errorHandler = (error, request, response, next) => {
+  console.log(error.message);
 
-    response.json(persons)
-})
+  if (error.name === "CastError" && error.kind == "ObjectId") {
+    return response.status(400).send({ error: "malformatted id" });
+  } else if (error.name === "ValidationError") {
+    return response.status(400).json({ error: error.message });
+  }
 
+  next(error);
+};
 
-const PORT = process.env.PORT || 3001
+app.use(errorHandler);
+
+const PORT = process.env.PORT;
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`)
-})
+  console.log(`Server running on port ${PORT}`);
+});
