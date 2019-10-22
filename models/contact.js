@@ -3,10 +3,10 @@ const uniqueValidator = require("mongoose-unique-validator");
 mongoose.set("useFindAndModify", false);
 mongoose.set("useCreateIndex", true);
 
-console.log("connecting to:", process.env.MONGODB_URI);
+//console.log("connecting to:", process.env.MONGODB_URI);
 
 mongoose
-  .connect(process.env.MONGODB_URI, {
+  .connect('mongodb+srv://fullstack-puhelinluettelo:xDPc8qVSuh9gblgJ@cluster0-7rimt.mongodb.net/test?retryWrites=true&w=majority', {
     useNewUrlParser: true,
     useUnifiedTopology: true
   })
